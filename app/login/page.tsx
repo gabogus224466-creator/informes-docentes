@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { supaBrowser } from '@/lib/supabase';
+import { supaBrowser } from '@/lib/supabase-browser';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,7 +15,8 @@ export default function LoginPage() {
     setMsg(null);
     const supabase = supaBrowser();
     const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
-    if (error) setMsg(error.message); else router.push(params.get('next') || '/descargas');
+    if (error) setMsg(error.message);
+    else router.push(params.get('next') || '/descargas');
   };
 
   return (
