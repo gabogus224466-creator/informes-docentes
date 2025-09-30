@@ -1,27 +1,35 @@
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { createClient } from '@supabase/supabase-js';
 
-const ALLOW = new Set(['msaltos@uce.edu.ec','gghermosa@uce.edu.ec']);
+const BUCKET = 'informes_docentes';
+const ALLOW = new Set(['msaltos@uce.edu.ec', 'gghermosa@uce.edu.ec']);
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const file = url.searchParams.get('file');
-  if (!file) return NextResponse.json({ error: 'Falta ?file' }, { status: 400 });
+  const file = url.searchParams.get('file') || '';
 
-  const supaAuth = createRouteHandlerClient({ cookies });
-  const { data: { user } } = await supaAuth.auth.getUser();
-  if (!user || !ALLOW.has(user.email || '')) return new Response('No autorizado', { status: 403 });
+  if (!file) {
+    return NextResponse.json({ error: 'Falta "file"' }, { status: 400 });
+  }
 
-  const supaSrv = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-  const { data, error } = await supaSrv.storage
-    .from('informes_docentes')
-    .createSignedUrl(file, 60 * 5);
+  const supa = createRouteHandlerClient({ cookies });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const { data: { user } } = await supa.auth.getUser();
+  if (!user || !ALLOW.has(user.email ?? '')) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  }
+
+  // URL firmada válida por 60 segundos
+  const { data, error } = await supa
+    .storage
+    .from(BUCKET)
+    .createSignedUrl(file, 60);
+
+  if (error || !data?.signedUrl) {
+    return NextResponse.json({ error: error?.message || 'No se pudo firmar la URL' }, { status: 500 });
+  }
+
+  // redirige al archivo para que el navegador lo descargue
   return NextResponse.redirect(data.signedUrl);
 }
