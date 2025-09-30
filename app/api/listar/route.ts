@@ -1,32 +1,33 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 
-const ALLOW = new Set(['msaltos@uce.edu.ec', 'gghermosa@uce.edu.ec']);
+const BUCKET = 'informes_docentes';
+const ALLOW = new Set(['msaltos@uce.edu.ec', 'gghermosa@uce.edu.ec']); // tu lista
 
-export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const prefix = url.searchParams.get('prefix') || '1S-2025-2025/';
+export async function GET() {
+  const supa = createRouteHandlerClient({ cookies });
 
-  const supaAuth = createRouteHandlerClient({ cookies });
-  const { data: { user } } = await supaAuth.auth.getUser();
-  if (!user || !ALLOW.has(user.email || '')) {
-    return new Response('No autorizado', { status: 403 });
+  // auth + whitelist
+  const { data: { user } } = await supa.auth.getUser();
+  if (!user || !ALLOW.has(user.email ?? '')) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 
-  const supaSrv = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-  const { data, error } = await supaSrv
-    .storage.from('informes_docentes')
-    .list(prefix, { limit: 500 });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // como tus archivos están en la raíz, prefix = '' y list() sin carpeta
+  const { data, error } = await supa
+    .storage
+    .from(BUCKET)
+    .list('', { limit: 1000, sortBy: { column: 'name', order: 'asc' } });
 
-  const files = (data || [])
-    .filter(o => o.name?.toLowerCase().endsWith('.pdf'))
-    .map(o => `${prefix}${o.name}`);
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // devolvemos solo nombres (p. ej. "informe_Andrea_Jara.pdf")
+  const files = (data ?? [])
+    .filter(item => item?.name)        // ignora directorios
+    .map(item => item.name);
 
   return NextResponse.json({ files });
 }
