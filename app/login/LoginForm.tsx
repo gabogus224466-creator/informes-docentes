@@ -1,4 +1,3 @@
-// app/login/LoginForm.tsx
 'use client';
 
 import { useState } from 'react';
@@ -17,8 +16,7 @@ export default function LoginForm() {
     setMsg(null);
     const supabase = supaBrowser();
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: pass,
+      email, password: pass
     });
     if (error) setMsg(error.message);
     else router.push(params.get('next') || '/descargas');
