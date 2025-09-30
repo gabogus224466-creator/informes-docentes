@@ -15,9 +15,7 @@ export default function LoginForm() {
     e.preventDefault();
     setMsg(null);
     const supabase = supaBrowser();
-    const { error } = await supabase.auth.signInWithPassword({
-      email, password: pass
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
     if (error) setMsg(error.message);
     else router.push(params.get('next') || '/descargas');
   };
